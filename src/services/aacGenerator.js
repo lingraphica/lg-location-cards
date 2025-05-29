@@ -25,12 +25,12 @@ const generateAACPrompt = (businessName, category, address) => {
   return `You are creating AAC cards for "${businessName}" - a ${category} business.
 
 CRITICAL RULES:
-1. Create exactly 6 subfolders that are ULTRA-SPECIFIC to ${category} businesses
+1. Create exactly 4 subfolders that are ULTRA-SPECIFIC to ${category} businesses
 2. NEVER use these generic names: "Basic Needs", "Social", "Feelings", "Actions", "Questions", "Food & Drink", "Places"
 3. Focus on BUSINESS-SPECIFIC activities, products, services, and interactions ONLY
 4. Each folder name must be something you can ONLY do at a ${category} business
 
-REQUIRED: All 6 folders must be ${category}-specific like:
+REQUIRED: All 4 folders must be ${category}-specific like:
 ${examples}
 
 FORBIDDEN: Do NOT create any folder that could exist in a general AAC app. Every folder must be 100% specific to what happens inside a ${category}.
@@ -50,12 +50,33 @@ Return JSON with exactly this structure:
   ]
 }
 
-IMPORTANT: Each subfolder needs exactly 18 cards (not more, not less). Make them VERY specific to ${category} businesses.`;
+IMPORTANT: Each subfolder needs exactly 8 cards (not more, not less). Make them VERY specific to ${category} businesses.
+
+CARD RULES:
+- Exactly 4 cards should be single words (like "Turkey", "Help", "Fresh", "Receipt")
+- Exactly 4 cards should be short phrases (like "I need help", "How much?", "Is this fresh?")
+- Mix single words and phrases within each folder for variety`;
 };
 
 const parseAACResponse = (response) => {
   try {
-    const parsed = JSON.parse(response);
+    // Clean the response to handle potential formatting issues
+    let cleanedResponse = response.trim();
+    
+    // Remove any markdown code blocks if present
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    // Try to find the JSON object if response has extra text
+    const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleanedResponse = jsonMatch[0];
+    }
+    
+    const parsed = JSON.parse(cleanedResponse);
     
     // Validate the structure
     if (!parsed.subfolders || !Array.isArray(parsed.subfolders)) {
@@ -65,6 +86,7 @@ const parseAACResponse = (response) => {
     return parsed.subfolders;
   } catch (error) {
     console.error('Failed to parse AAC response:', error);
+    console.error('Raw response:', response);
     return null;
   }
 };
@@ -80,15 +102,15 @@ export const generateAACCards = async (businessName, category, address) => {
       messages: [
         {
           role: "system",
-          content: `You are an expert AAC specialist creating business-specific communication cards. You understand that users already have generic AAC folders like "Basic Needs", "Social", "Feelings" etc. Your job is to create ONLY ultra-specific folders that are unique to the business type. Think like a customer inside that specific business - what would they need to communicate that's unique to THAT business only? Always respond with valid JSON only.`
+          content: `You are an expert AAC specialist creating business-specific communication cards. You understand that users already have generic AAC folders like "Basic Needs", "Social", "Feelings" etc. Your job is to create ONLY ultra-specific folders that are unique to the business type. Think like a customer inside that specific business - what would they need to communicate that's unique to THAT business only? CRITICAL: Always respond with valid JSON only. Do not include any explanatory text, markdown formatting, or code blocks. Return only the raw JSON object.`
         },
         {
           role: "user",
           content: prompt
         }
       ],
-      temperature: 0.9,
-      max_tokens: 1500
+      temperature: 0.7,
+      max_tokens: 2000
     });
 
     const responseContent = completion.choices[0].message.content;
@@ -107,28 +129,18 @@ export const generateAACCards = async (businessName, category, address) => {
     // Fallback to a basic structure if OpenAI fails
     return [
       {
-        name: "Basic Needs",
+        name: "Basic Communication",
         icon: "💬",
         description: "Essential communication",
         cards: [
           { text: "Hello", symbol: "👋" },
+          { text: "Help", symbol: "🙋" },
           { text: "Thank you", symbol: "🙏" },
-          { text: "I need help", symbol: "🙋" },
-          { text: "How much does this cost?", symbol: "💰" },
-          { text: "Where is the bathroom?", symbol: "🚻" },
-          { text: "Can you help me?", symbol: "❓" },
-          { text: "What time do you close?", symbol: "🕐" },
-          { text: "Can I pay with card?", symbol: "💳" },
-          { text: "Can I get a receipt?", symbol: "🧾" },
+          { text: "How much?", symbol: "💰" },
+          { text: "Receipt", symbol: "🧾" },
+          { text: "Card", symbol: "💳" },
           { text: "Goodbye", symbol: "👋" },
-          { text: "I'm looking for something", symbol: "👀" },
-          { text: "Do you have this?", symbol: "📦" },
-          { text: "I want to buy this", symbol: "🛒" },
-          { text: "Is this available?", symbol: "✅" },
-          { text: "I'll come back later", symbol: "↩️" },
-          { text: "That's perfect", symbol: "👍" },
-          { text: "I'm just looking", symbol: "👁️" },
-          { text: "Have a good day", symbol: "😊" }
+          { text: "Perfect", symbol: "👍" }
         ]
       },
       {
@@ -136,24 +148,14 @@ export const generateAACCards = async (businessName, category, address) => {
         icon: "❓",
         description: "Common questions",
         cards: [
-          { text: "Where is this?", symbol: "📍" },
-          { text: "What time?", symbol: "🕐" },
-          { text: "How much?", symbol: "💰" },
+          { text: "Where?", symbol: "📍" },
+          { text: "When?", symbol: "🕐" },
           { text: "Do you have?", symbol: "❓" },
           { text: "Can I get?", symbol: "🙋" },
-          { text: "Is this available?", symbol: "✅" },
-          { text: "When do you close?", symbol: "🚪" },
-          { text: "Where do I pay?", symbol: "💳" },
-          { text: "Can you help?", symbol: "🤝" },
-          { text: "What is this?", symbol: "🤔" },
-          { text: "How does this work?", symbol: "⚙️" },
-          { text: "Is this the right size?", symbol: "📏" },
-          { text: "Do you recommend this?", symbol: "👍" },
-          { text: "Can I try this?", symbol: "🔍" },
-          { text: "Is this on sale?", symbol: "🏷️" },
-          { text: "When will this be ready?", symbol: "⏰" },
-          { text: "Can I order this?", symbol: "📋" },
-          { text: "Do you deliver?", symbol: "🚛" }
+          { text: "Available?", symbol: "✅" },
+          { text: "Fresh?", symbol: "🌿" },
+          { text: "What time?", symbol: "🚪" },
+          { text: "How much?", symbol: "💰" }
         ]
       },
       {
@@ -161,24 +163,14 @@ export const generateAACCards = async (businessName, category, address) => {
         icon: "🛒",
         description: "Shopping activities",
         cards: [
-          { text: "I want to buy this", symbol: "🛒" },
-          { text: "I'm just looking", symbol: "👁️" },
+          { text: "Buy", symbol: "🛒" },
+          { text: "Looking", symbol: "👁️" },
           { text: "I'll take this", symbol: "✅" },
-          { text: "Can I see that?", symbol: "👀" },
-          { text: "I need this size", symbol: "📏" },
-          { text: "Do you have more colors?", symbol: "🌈" },
-          { text: "I'll think about it", symbol: "🤔" },
-          { text: "Can I get a bag?", symbol: "🛍️" },
-          { text: "Is this the best price?", symbol: "💰" },
-          { text: "I have a coupon", symbol: "🎫" },
-          { text: "Can I return this?", symbol: "↩️" },
-          { text: "I need a receipt", symbol: "🧾" },
-          { text: "Do you price match?", symbol: "🏷️" },
-          { text: "I'm comparing prices", symbol: "⚖️" },
-          { text: "Is this item new?", symbol: "✨" },
-          { text: "When did this arrive?", symbol: "📅" },
-          { text: "Is this popular?", symbol: "⭐" },
-          { text: "I'll come back", symbol: "🔄" }
+          { text: "Can I see?", symbol: "👀" },
+          { text: "Size", symbol: "📏" },
+          { text: "Colors", symbol: "🌈" },
+          { text: "Think about it", symbol: "🤔" },
+          { text: "Bag", symbol: "🛍️" }
         ]
       },
       {
@@ -186,74 +178,14 @@ export const generateAACCards = async (businessName, category, address) => {
         icon: "💳",
         description: "Payment and checkout",
         cards: [
-          { text: "I'll pay with card", symbol: "💳" },
-          { text: "I'll pay with cash", symbol: "💵" },
-          { text: "Can I pay with phone?", symbol: "📱" },
-          { text: "Do you take checks?", symbol: "📄" },
-          { text: "I need change", symbol: "💰" },
-          { text: "Keep the change", symbol: "🙏" },
-          { text: "Can I get a receipt?", symbol: "🧾" },
-          { text: "I need an itemized receipt", symbol: "📋" },
-          { text: "Can I email the receipt?", symbol: "📧" },
-          { text: "I have a gift card", symbol: "🎁" },
-          { text: "Can I split payment?", symbol: "✂️" },
-          { text: "Is there tax?", symbol: "📊" },
-          { text: "What's the total?", symbol: "🧮" },
-          { text: "Can I pay later?", symbol: "⏰" },
-          { text: "Do you have layaway?", symbol: "📦" },
-          { text: "I need to cancel", symbol: "❌" },
-          { text: "Can I get a refund?", symbol: "💸" },
-          { text: "Is this final sale?", symbol: "🔒" }
-        ]
-      },
-      {
-        name: "Services",
-        icon: "🔧",
-        description: "Services and assistance",
-        cards: [
-          { text: "I need assistance", symbol: "🙋" },
-          { text: "Can you show me?", symbol: "👉" },
-          { text: "Can you explain this?", symbol: "💬" },
-          { text: "I need directions", symbol: "🗺️" },
-          { text: "Where is customer service?", symbol: "🏪" },
-          { text: "Can you check the back?", symbol: "📦" },
-          { text: "Can you order this?", symbol: "📋" },
-          { text: "When will it arrive?", symbol: "📅" },
-          { text: "Can you call me?", symbol: "📞" },
-          { text: "I have a complaint", symbol: "😤" },
-          { text: "I have a compliment", symbol: "😊" },
-          { text: "Can you gift wrap?", symbol: "🎁" },
-          { text: "Do you deliver?", symbol: "🚛" },
-          { text: "Can you install this?", symbol: "🔧" },
-          { text: "Do you repair?", symbol: "🛠️" },
-          { text: "I need a warranty", symbol: "🛡️" },
-          { text: "Can you recommend?", symbol: "💡" },
-          { text: "Thank you for your help", symbol: "🙏" }
-        ]
-      },
-      {
-        name: "Social",
-        icon: "👋",
-        description: "Social interactions",
-        cards: [
-          { text: "Good morning", symbol: "🌅" },
-          { text: "Good afternoon", symbol: "☀️" },
-          { text: "Good evening", symbol: "🌆" },
-          { text: "How are you?", symbol: "😊" },
-          { text: "Nice weather today", symbol: "🌤️" },
-          { text: "Thank you", symbol: "🙏" },
-          { text: "You're welcome", symbol: "😊" },
-          { text: "Excuse me", symbol: "🙋" },
-          { text: "I'm sorry", symbol: "😔" },
-          { text: "No problem", symbol: "👌" },
-          { text: "Have a good day", symbol: "😊" },
-          { text: "See you later", symbol: "👋" },
-          { text: "Take care", symbol: "💙" },
-          { text: "Nice to meet you", symbol: "🤝" },
-          { text: "I appreciate your help", symbol: "🙏" },
-          { text: "You've been very helpful", symbol: "⭐" },
-          { text: "This place is nice", symbol: "👍" },
-          { text: "I'll recommend this place", symbol: "💬" }
+          { text: "Card", symbol: "💳" },
+          { text: "Cash", symbol: "💵" },
+          { text: "Can I pay?", symbol: "📱" },
+          { text: "Change", symbol: "💰" },
+          { text: "Receipt", symbol: "🧾" },
+          { text: "Total", symbol: "🧮" },
+          { text: "Pay later?", symbol: "⏰" },
+          { text: "Refund", symbol: "💸" }
         ]
       }
     ];
@@ -263,8 +195,14 @@ export const generateAACCards = async (businessName, category, address) => {
 // Cache for generated cards to avoid re-generating
 const cardCache = new Map();
 
+// Clear cache function for debugging
+export const clearCache = () => {
+  cardCache.clear();
+  console.log('AAC card cache cleared');
+};
+
 export const getCachedOrGenerateCards = async (businessName, category, address) => {
-  const cacheKey = `${businessName}-${category}`;
+  const cacheKey = `${businessName}-${category}-${address}`;
   
   if (cardCache.has(cacheKey)) {
     console.log(`Using cached cards for ${businessName}`);

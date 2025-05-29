@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import BusinessFolder from './BusinessFolder';
 import AACCard from './AACCard';
 import { getTalkFolders } from '../data/talkFolders';
@@ -11,11 +12,13 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
   const [loading, setLoading] = useState(false);
   const [navLevel, setNavLevel] = useState('main'); // 'main', 'subfolders', 'cards'
 
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+  });
+
   if (!isOpen) return null;
 
-  // Get 3 local folders
-  const localFolders = getTalkFolders().slice(0, 3);
-  
   // Get 3 business categories
   const getBusinessCategories = () => {
     const categoryCount = {};
@@ -48,11 +51,36 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
 
   const businessCategories = getBusinessCategories();
 
-  // Generate Google Maps static image URL
-  const getMapImageUrl = () => {
-    if (!userLocation) return null;
-    const { lat, lng } = userLocation;
-    return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=200x150&markers=color:red%7C${lat},${lng}&key=YOUR_API_KEY`;
+  // Mini map component
+  const MiniMap = () => {
+    if (!isLoaded || !userLocation) {
+      return (
+        <div className="w-full h-28 bg-gray-200 rounded-lg flex items-center justify-center">
+          <div className="text-gray-600 text-xs">📍 Loading...</div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-full h-28 rounded-lg overflow-hidden border border-gray-300">
+        <GoogleMap
+          mapContainerStyle={{ width: '100%', height: '100%' }}
+          center={userLocation}
+          zoom={15}
+          options={{
+            disableDefaultUI: true,
+            zoomControl: false,
+            mapTypeControl: false,
+            scaleControl: false,
+            streetViewControl: false,
+            rotateControl: false,
+            fullscreenControl: false
+          }}
+        >
+          <Marker position={userLocation} />
+        </GoogleMap>
+      </div>
+    );
   };
 
   const handleLocalFolderClick = (folder) => {
@@ -65,13 +93,15 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
     // For business folders, generate and show subfolders
     setSelectedFolder(category);
     setNavLevel('subfolders');
+    setSelectedSubfolder(null); // Clear any previous subfolder selection
     
     const business = businesses.find(b => b.category === category.category);
-    if (business && !generatedSubfolders[category.category]) {
+    if (business) {
       setLoading(true);
       try {
         console.log(`Generating cards for ${business.name}`);
         const subfolders = await getCachedOrGenerateCards(business.name, business.category, business.address);
+        // Always update the subfolders for this category, even if cached
         setGeneratedSubfolders(prev => ({
           ...prev,
           [category.category]: subfolders
@@ -112,21 +142,15 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
 
         {/* Content - Always show main grid, then expand below */}
         <div className="space-y-6">
-          {/* Main Grid: 3 local + 3 business folders */}
-          <div className="grid grid-cols-6 gap-4">
-            {/* Local Folders (left 3) */}
-            {localFolders.map((folder) => (
-              <BusinessFolder
-                key={`local-${folder.id}`}
-                category={folder.name}
-                icon={folder.icon}
-                count="local talk\nlibrary cards"
-                onClick={() => handleLocalFolderClick(folder)}
-                isActive={selectedFolder?.id === folder.id}
-              />
-            ))}
-
-            {/* Business Category Folders (right 3) */}
+          {/* Top Row: Mini map + Business folders */}
+          <div className="grid grid-cols-5 gap-4">
+            {/* Mini Map (takes 1 column) */}
+            <div className="flex flex-col">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Your Location</h3>
+              <MiniMap />
+            </div>
+            
+            {/* Business Category Folders (3 columns) */}
             {businessCategories.map((cat, index) => (
               <BusinessFolder
                 key={`business-${index}`}
@@ -137,7 +161,41 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
                 isActive={selectedFolder?.category === cat.category}
               />
             ))}
+            
+            {/* Placeholder folder (1 column) */}
+            <BusinessFolder
+              key="placeholder"
+              category="Coming Soon"
+              icon="❓"
+              count=""
+              onClick={() => {}} // Does nothing
+              isActive={false}
+            />
           </div>
+          
+          {/* Business Info Row - Show when business folder selected */}
+          {selectedFolder && selectedFolder.category && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                {selectedFolder.category} Businesses Near You
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                {businesses
+                  .filter(b => b.category === selectedFolder.category)
+                  .slice(0, 3)
+                  .map((business, index) => (
+                    <div key={index} className="bg-white rounded-lg p-3 border border-blue-100">
+                      <h4 className="font-semibold text-gray-900 text-sm">{business.name}</h4>
+                      <p className="text-xs text-gray-600 mt-1">{business.address}</p>
+                      {business.rating && (
+                        <p className="text-xs text-yellow-600 mt-1">⭐ {business.rating}</p>
+                      )}
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+          )}
 
           {/* Subfolders Row - Show when business folder selected and keep visible */}
           {(navLevel === 'subfolders' || navLevel === 'cards') && selectedFolder && selectedFolder.category && (
@@ -153,13 +211,13 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-6 gap-4">
-                  {(generatedSubfolders[selectedFolder.category] || []).slice(0, 6).map((subfolder, index) => (
+                <div className="grid grid-cols-4 gap-4">
+                  {(generatedSubfolders[selectedFolder.category] || []).slice(0, 4).map((subfolder, index) => (
                     <BusinessFolder
                       key={`subfolder-${index}`}
                       category={subfolder.name}
                       icon={subfolder.icon}
-                      count="18 cards"
+                      count="8 cards"
                       onClick={() => handleSubfolderClick(subfolder)}
                       isActive={selectedSubfolder?.name === subfolder.name}
                     />
@@ -175,18 +233,15 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 {selectedSubfolder?.name || selectedFolder.name} Cards
               </h3>
-              <div className="grid grid-cols-6 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 {(() => {
                   let cards = [];
                   if (selectedSubfolder) {
                     // AI-generated subfolder cards
                     cards = selectedSubfolder.cards || [];
-                  } else if (selectedFolder) {
-                    // Local folder cards
-                    cards = selectedFolder.cards || [];
                   }
                   
-                  return cards.slice(0, 18).map((card, index) => (
+                  return cards.slice(0, 8).map((card, index) => (
                     <AACCard
                       key={index}
                       text={card.text}
@@ -203,7 +258,7 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
           {/* Footer */}
           <div className="text-center">
             <p className="text-sm text-gray-600">
-              Choose from 3 local folders or 3 business categories to access communication cards
+              Choose from 3 business categories to access communication cards
             </p>
           </div>
         </div>
