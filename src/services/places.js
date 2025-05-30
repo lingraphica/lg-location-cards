@@ -144,37 +144,33 @@ const searchRealPlaces = async (location, radius) => {
             lat: place.geometry.location.lat(),
             lng: place.geometry.location.lng(),
             place_id: place.place_id,
-            photos: place.photos ? place.photos.slice(0, 3).map(photo => {
-              console.log('Raw photo object from Google:', photo);
-              console.log('Photo methods:', Object.getOwnPropertyNames(photo));
-              
-              // Try to get the URL directly using getUrl method
-              let photoUrl = null;
-              try {
-                if (typeof photo.getUrl === 'function') {
-                  photoUrl = photo.getUrl({ maxWidth: 200 });
-                  console.log('Generated URL with getUrl:', photoUrl);
-                  console.log('URL type:', typeof photoUrl);
-                  console.log('URL length:', photoUrl ? photoUrl.length : 'null');
-                  
-                  // Try different parameters
-                  const altUrl = photo.getUrl({ maxWidth: 400, maxHeight: 400 });
-                  console.log('Alternative URL with different params:', altUrl);
-                }
-              } catch (error) {
-                console.warn('getUrl method failed:', error);
-              }
-              
-              return {
-                photo_reference: photo.photo_reference,
-                photoUrl: photoUrl, // Store the direct URL
+            photos: [] // Will be populated by getDetails call
+          };
+          
+          // Get photos using new Place class API
+          try {
+            const { Place } = await window.google.maps.importLibrary('places');
+            
+            const placeInstance = new Place({
+              id: place.place_id
+            });
+            
+            await placeInstance.fetchFields({ 
+              fields: ['photos'] 
+            });
+            
+            if (placeInstance.photos) {
+              business.photos = placeInstance.photos.slice(0, 3).map(photo => ({
+                photoUri: photo.getURI({ maxHeight: 400 }),
                 height: photo.height,
                 width: photo.width,
-                html_attributions: photo.html_attributions,
-                _rawPhoto: photo // Keep reference for debugging
-              };
-            }) : [] // Get up to 3 photos with proper structure
-          };
+                authorAttributions: photo.authorAttributions
+              }));
+              console.log(`Got ${business.photos.length} photos with getURI for ${business.name}`);
+            }
+          } catch (error) {
+            console.warn(`Failed to get photos for ${place.name}:`, error);
+          }
           
           allBusinesses.push(business);
         }
@@ -199,46 +195,22 @@ export const getPlacePhotoUrl = (photoReference, maxWidth = 400) => {
 
 // Get the best photo for a business
 export const getBusinessPhoto = (business) => {
+  console.log(`getBusinessPhoto called for ${business.name}`, business);
+  
   if (!business.photos || business.photos.length === 0) {
     console.log(`No photos available for ${business.name}`);
     return null;
   }
   
-  console.log(`Getting photo for ${business.name}:`, business.photos[0]);
-  
   const photo = business.photos[0];
   
-  // Method 1: Use direct photoUrl if we stored it during extraction
-  if (photo.photoUrl) {
-    console.log(`Using stored photoUrl for ${business.name}:`, photo.photoUrl);
-    return photo.photoUrl;
+  // Use new Place class photoUri
+  if (photo.photoUri) {
+    console.log(`Got photo URI for ${business.name}:`, photo.photoUri);
+    return photo.photoUri;
   }
   
-  // Method 2: Use photo_reference if available
-  if (photo.photo_reference) {
-    const photoUrl = getPlacePhotoUrl(photo.photo_reference, 200);
-    console.log(`Generated photo URL from reference for ${business.name}:`, photoUrl);
-    return photoUrl;
-  }
-  
-  // Method 3: Try getUrl method on raw photo object
-  if (photo._rawPhoto && typeof photo._rawPhoto.getUrl === 'function') {
-    try {
-      const photoUrl = photo._rawPhoto.getUrl({ maxWidth: 200 });
-      console.log(`Generated photo URL from getUrl for ${business.name}:`, photoUrl);
-      return photoUrl;
-    } catch (error) {
-      console.warn(`getUrl failed for ${business.name}:`, error);
-    }
-  }
-  
-  // Method 4: Direct access to any URL field
-  if (photo.url) {
-    console.log(`Using direct URL for ${business.name}:`, photo.url);
-    return photo.url;
-  }
-  
-  console.warn(`No photo URL found for ${business.name}`, photo);
+  console.warn(`No photoUri found for ${business.name}`, photo);
   return null;
 };
 

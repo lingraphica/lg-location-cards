@@ -127,6 +127,87 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
     setNavLevel('cards');
   };
 
+  const handleCustomShopClick = () => {
+    // Mock custom flower shop data
+    const customShop = {
+      category: "Bella's Flowers",
+      name: "Bella's Flowers"
+    };
+    
+    setSelectedFolder(customShop);
+    setNavLevel('subfolders');
+    setSelectedSubfolder(null);
+    
+    // Create custom subfolders with photos
+    const customSubfolders = [
+      {
+        name: "Occasions",
+        icon: "💒",
+        photo: "/photos/occasions-subfolder.jpg", // Wedding bouquet or elegant arrangement
+        cards: [
+          { text: "Wedding", symbol: "👰", photo: "/photos/wedding-bouquet.jpg" },
+          { text: "Birthday", symbol: "🎂", photo: "/photos/birthday-flowers.jpg" },
+          { text: "Sympathy", symbol: "🕊️", photo: "/photos/sympathy-wreath.jpg" },
+          { text: "Anniversary", symbol: "💕", photo: "/photos/anniversary-roses.jpg" },
+          { text: "Graduation", symbol: "🎓", photo: "/photos/graduation-flowers.jpg" },
+          { text: "Get Well", symbol: "🌸", photo: "/photos/get-well-flowers.jpg" },
+          { text: "Thank You", symbol: "🙏", photo: "/photos/thank-you-bouquet.jpg" },
+          { text: "Congratulations", symbol: "🎉", photo: "/photos/congrats-flowers.jpg" }
+        ]
+      },
+      {
+        name: "Flower Types",
+        icon: "🌹",
+        photo: "/photos/flower-types-subfolder.jpg", // Colorful mixed flower display
+        cards: [
+          { text: "Roses", symbol: "🌹", photo: "/photos/red-roses.jpg" },
+          { text: "Tulips", symbol: "🌷", photo: "/photos/yellow-tulips.jpg" },
+          { text: "Sunflowers", symbol: "🌻", photo: "/photos/bright-sunflowers.jpg" },
+          { text: "Lilies", symbol: "🪷", photo: "/photos/white-lilies.jpg" },
+          { text: "Daisies", symbol: "🌼", photo: "/photos/white-daisies.jpg" },
+          { text: "Orchids", symbol: "🌺", photo: "/photos/purple-orchids.jpg" },
+          { text: "Carnations", symbol: "🌸", photo: "/photos/pink-carnations.jpg" },
+          { text: "Peonies", symbol: "🌸", photo: "/photos/peony-flowers.jpg" }
+        ]
+      },
+      {
+        name: "Services",
+        icon: "🚚",
+        photo: "/photos/services-subfolder.jpg", // Florist arranging flowers or delivery van
+        cards: [
+          { text: "Same Day Delivery", symbol: "🚚", photo: "/photos/flower-delivery.jpg" },
+          { text: "Custom Arrangement", symbol: "💐", photo: "/photos/flower-arranging.jpg" },
+          { text: "Design Consultation", symbol: "👩‍🌾", photo: "/photos/florist-consultation.jpg" },
+          { text: "Care Instructions", symbol: "💧", photo: "/photos/flower-care.jpg" },
+          { text: "Bespoke Design", symbol: "🎨", photo: "/photos/custom-design.jpg" },
+          { text: "Wedding Package", symbol: "💒", photo: "/photos/wedding-planning.jpg" },
+          { text: "Event Styling", symbol: "🎪", photo: "/photos/event-decoration.jpg" },
+          { text: "Weekly Delivery", symbol: "📅", photo: "/photos/flower-subscription.jpg" }
+        ]
+      },
+      {
+        name: "Colors",
+        icon: "🎨",
+        photo: "/photos/colors-subfolder.jpg", // Colorful flower arrangements showing different colors
+        cards: [
+          { text: "Red", symbol: "🔴", photo: "/photos/red-flowers.jpg" },
+          { text: "Pink", symbol: "🩷", photo: "/photos/pink-flowers.jpg" },
+          { text: "White", symbol: "⚪", photo: "/photos/white-flowers.jpg" },
+          { text: "Yellow", symbol: "🟡", photo: "/photos/yellow-flowers.jpg" },
+          { text: "Purple", symbol: "🟣", photo: "/photos/purple-flowers.jpg" },
+          { text: "Orange", symbol: "🟠", photo: "/photos/orange-flowers.jpg" },
+          { text: "Mixed Colors", symbol: "🌈", photo: "/photos/mixed-flowers.jpg" },
+          { text: "Pastel Tones", symbol: "🎀", photo: "/photos/pastel-flowers.jpg" }
+        ]
+      }
+    ];
+    
+    setGeneratedSubfolders(prev => ({
+      ...prev,
+      "Bella's Flowers": customSubfolders
+    }));
+  };
+
   const resetOverlay = () => {
     setSelectedFolder(null);
     setSelectedSubfolder(null);
@@ -172,14 +253,16 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
               );
             })}
             
-            {/* Placeholder folder (1 column) */}
+            {/* Custom Flower Shop folder (1 column) */}
             <BusinessFolder
-              key="placeholder"
-              category="Coming Soon"
-              icon="❓"
-              count=""
-              onClick={() => {}} // Does nothing
-              isActive={false}
+              key="custom-shop"
+              category="Bella's Flowers"
+              icon="🌺"
+              count="Custom"
+              photo="/photos/bella-flowers-main.jpg"
+              onClick={() => handleCustomShopClick()}
+              isActive={selectedFolder?.category === "Bella's Flowers"}
+              isCustom={true}
             />
           </div>
           
@@ -248,8 +331,10 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
                       category={subfolder.name}
                       icon={subfolder.icon}
                       count="8 cards"
+                      photo={subfolder.photo}
                       onClick={() => handleSubfolderClick(subfolder)}
                       isActive={selectedSubfolder?.name === subfolder.name}
+                      isCustom={selectedFolder.category === "Bella's Flowers"}
                     />
                   ))}
                 </div>
@@ -276,6 +361,7 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
                       key={index}
                       text={card.text}
                       symbol={card.symbol}
+                      photo={card.photo}
                       onPress={(text) => console.log('Card pressed:', text)}
                       size="medium"
                     />

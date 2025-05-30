@@ -1,4 +1,6 @@
-function AACCard({ text, symbol, onPress, size = "medium" }) {
+import { getIconForText } from '../services/iconService';
+
+function AACCard({ text, symbol, onPress, size = "medium", photo }) {
   const handleClick = () => {
     // Use enhanced voice service for better quality
     import('../services/voiceService').then(({ voiceService }) => {
@@ -31,11 +33,23 @@ function AACCard({ text, symbol, onPress, size = "medium" }) {
                  shadow-lg hover:shadow-xl focus:outline-none 
                  focus:ring-2 focus:ring-purple-500 focus:ring-offset-2`}
     >
-      {symbol && (
-        <span className="text-2xl mb-2" role="img" aria-label={text}>
-          {symbol}
-        </span>
-      )}
+      <div className="mb-2 flex items-center justify-center">
+        {photo ? (
+          <img 
+            src={photo} 
+            alt={text}
+            className="w-12 h-12 object-cover rounded-lg bg-gray-100"
+            onError={(e) => {
+              // Fallback to icon if photo fails to load
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+          />
+        ) : null}
+        <div className={`${photo ? 'hidden' : 'flex'} items-center justify-center`}>
+          {getIconForText(text, symbol)}
+        </div>
+      </div>
       <span className="text-center font-semibold leading-tight px-1 text-gray-800">
         {text}
       </span>

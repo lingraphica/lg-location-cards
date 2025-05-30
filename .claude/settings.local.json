@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)",
+      "Bash(npm install:*)",
+      "WebFetch(domain:developers.google.com)"
+    ],
+    "deny": []
+  }
+}

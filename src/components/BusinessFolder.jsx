@@ -1,4 +1,33 @@
-function BusinessFolder({ category, icon, count, onClick, isActive }) {
+import { getBusinessIcon, ICON_STRATEGIES } from '../services/iconService';
+
+function BusinessFolder({ category, icon, count, onClick, isActive, photo, isCustom }) {
+  const renderIcon = () => {
+    // If we have a real business photo, use it
+    if (photo) {
+      return (
+        <img 
+          src={photo} 
+          alt={category}
+          className={`object-cover rounded-lg ${
+            isCustom ? 'w-24 h-16' : 'w-12 h-12'
+          }`}
+          onError={(e) => {
+            // Fallback to emoji if photo fails to load
+            e.target.style.display = 'none';
+            e.target.nextSibling.style.display = 'flex';
+          }}
+        />
+      );
+    }
+    
+    // Fallback to emoji
+    return (
+      <div className="text-4xl" role="img" aria-label={category}>
+        {icon}
+      </div>
+    );
+  };
+
   return (
     <button
       onClick={onClick}
@@ -18,8 +47,12 @@ function BusinessFolder({ category, icon, count, onClick, isActive }) {
         
         {/* Folder content */}
         <div className="flex flex-col items-center justify-center h-full p-3">
-          <div className="bg-white rounded-lg p-3 mb-2 shadow-sm">
-            <div className="text-4xl" role="img" aria-label={category}>
+          <div className={`rounded-lg mb-2 shadow-sm ${
+            photo && isCustom ? 'p-1' : 'bg-white p-3'
+          }`}>
+            {renderIcon()}
+            {/* Hidden emoji fallback */}
+            <div className="text-4xl hidden" role="img" aria-label={category}>
               {icon}
             </div>
           </div>
