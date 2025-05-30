@@ -4,6 +4,10 @@ import BusinessFolder from './BusinessFolder';
 import AACCard from './AACCard';
 import { getTalkFolders } from '../data/talkFolders';
 import { getCachedOrGenerateCards } from '../services/aacGenerator';
+import { getBusinessPhoto } from '../services/places';
+
+// Static array to prevent reloading
+const libraries = ['places'];
 
 function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
   const [selectedFolder, setSelectedFolder] = useState(null);
@@ -14,7 +18,8 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    libraries: libraries
   });
 
   if (!isOpen) return null;
@@ -44,7 +49,10 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
       'Bookstore': '📚',
       'Restaurant': '🍽️',
       'Gas Station': '⛽',
-      'Bank': '🏦'
+      'Bank': '🏦',
+      'Real Estate': '🏘️',
+      'Moving & Storage': '📦',
+      'Storage': '🏪'
     };
     return icons[category] || '🏪';
   };
@@ -151,16 +159,18 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
             </div>
             
             {/* Business Category Folders (3 columns) */}
-            {businessCategories.map((cat, index) => (
-              <BusinessFolder
-                key={`business-${index}`}
-                category={cat.category}
-                icon={cat.icon}
-                count={cat.count}
-                onClick={() => handleBusinessFolderClick(cat)}
-                isActive={selectedFolder?.category === cat.category}
-              />
-            ))}
+            {businessCategories.map((cat, index) => {
+              return (
+                <BusinessFolder
+                  key={`business-${index}`}
+                  category={cat.category}
+                  icon={cat.icon}
+                  count={cat.count}
+                  onClick={() => handleBusinessFolderClick(cat)}
+                  isActive={selectedFolder?.category === cat.category}
+                />
+              );
+            })}
             
             {/* Placeholder folder (1 column) */}
             <BusinessFolder
@@ -183,15 +193,35 @@ function LocationOverlay({ isOpen, onClose, businesses, userLocation }) {
                 {businesses
                   .filter(b => b.category === selectedFolder.category)
                   .slice(0, 3)
-                  .map((business, index) => (
-                    <div key={index} className="bg-white rounded-lg p-3 border border-blue-100">
-                      <h4 className="font-semibold text-gray-900 text-sm">{business.name}</h4>
-                      <p className="text-xs text-gray-600 mt-1">{business.address}</p>
-                      {business.rating && (
-                        <p className="text-xs text-yellow-600 mt-1">⭐ {business.rating}</p>
-                      )}
-                    </div>
-                  ))
+                  .map((business, index) => {
+                    const photoUrl = getBusinessPhoto(business);
+                    console.log(`Business ${index} (${business.name}) photoUrl:`, photoUrl);
+                    console.log(`Business ${index} photos array:`, business.photos);
+                    
+                    return (
+                      <div key={index} className="bg-white rounded-lg p-3 border border-blue-100">
+                        {photoUrl && (
+                          <img 
+                            src={photoUrl} 
+                            alt={business.name}
+                            className="w-full h-24 object-cover rounded-lg mb-2"
+                            onError={(e) => {
+                              console.log(`Image failed to load for ${business.name}:`, photoUrl);
+                              e.target.style.display = 'none';
+                            }}
+                            onLoad={(e) => {
+                              console.log(`Image loaded successfully for ${business.name}:`, photoUrl);
+                            }}
+                          />
+                        )}
+                        <h4 className="font-semibold text-gray-900 text-sm">{business.name}</h4>
+                        <p className="text-xs text-gray-600 mt-1">{business.address}</p>
+                        {business.rating && (
+                          <p className="text-xs text-yellow-600 mt-1">⭐ {business.rating}</p>
+                        )}
+                      </div>
+                    );
+                  })
                 }
               </div>
             </div>
